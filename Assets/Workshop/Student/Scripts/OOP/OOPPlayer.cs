@@ -4,7 +4,6 @@ using UnityEngine.InputSystem;
 
 namespace Solution
 {
-
     public class OOPPlayer : Character
     {
         public Inventory inventory;
@@ -20,6 +19,13 @@ namespace Solution
             PrintInfo();
             GetRemainEnergy();
             inventory = GetComponent<Inventory>();
+            
+            // ตรวจสอบและดึง Component ActionHistoryManager หากยังไม่ได้เชื่อมต่อใน Inspector
+            if (actionHistoryManager == null)
+            {
+                actionHistoryManager = GetComponent<ActionHistoryManager>();
+            }
+
             moveAction = InputSystem.actions.FindAction("Move");
             fireAction = InputSystem.actions.FindAction("Attack");
         }
@@ -66,19 +72,24 @@ namespace Solution
                 actionHistoryManager.StartAutoMoveSequence(this);
             }
         }
+
         public override void Move(Vector2 direction)
         {
             base.Move(direction);
             mapGenerator.MoveEnemies();
-            // Save the state AFTER the move
-      
+
+            // บันทึกตำแหน่งปัจจุบันลงใน Undo Stack หลังจากเคลื่อนที่เสร็จสิ้น
+            if (actionHistoryManager != null)
+            {
+                actionHistoryManager.SaveStateForUndo(transform.position);
+            }
         }
 
         public void UseFireStorm()
         {
-            if (inventory.HasItem("FireStorm",1))
+            if (inventory.HasItem("FireStorm", 1))
             {
-                inventory.UseItem("FireStorm",1);
+                inventory.UseItem("FireStorm", 1);
                 OOPEnemy[] enemies = UtilitySortEnemies.SortEnemiesByRemainningEnergy1(mapGenerator);
                 int count = 3;
                 if (count > enemies.Length)
@@ -95,12 +106,13 @@ namespace Solution
                 Debug.Log("No FireStorm in inventory");
             }
         }
-        
+
         public void Attack(OOPEnemy _enemy)
         {
             _enemy.TakeDamage(AttackPoint);
             Debug.Log(_enemy.name + " is energy " + _enemy.energy);
         }
+
         protected override void CheckDead()
         {
             base.CheckDead();
@@ -109,7 +121,5 @@ namespace Solution
                 Debug.Log("Player is Dead");
             }
         }
-
     }
-
 }
